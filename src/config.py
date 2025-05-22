@@ -23,13 +23,6 @@ class Settings(BaseSettings):
     SUPPORTED_CHARTS: ClassVar[List[str]] = ["bar", "line", "scatter", "pie"]
     MAX_ROWS_DISPLAY: ClassVar[int] = 1000
     
-    # Default database settings (can be overridden by UI)
-    DEFAULT_DB_HOST: str = "localhost"
-    DEFAULT_DB_PORT: str = "3306"
-    DEFAULT_DB_USER: str = "root"
-    DEFAULT_DB_PASSWORD: str = "password"
-    DEFAULT_DB_NAME: str = "sql_training"
-    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -72,11 +65,14 @@ SQL_TEMPLATES: Dict[str, str] = {
     User question: {question}
     SQL Response: {response}
     
+    Write a direct, concise response without any introductory phrases like "Based on the SQL query and response". Just state the facts and suggest a visualization if appropriate.
+    
     If the data is suitable for visualization, end your response with one of these tags:
     <VISUALIZATION type="bar|line|scatter|pie" x="column_name" y="column_name" [color="column_name"] [values="column_name"] [names="column_name"]>
     
     For example:
-    This data shows sales by category. I've created a bar chart to better visualize this distribution.
-    <VISUALIZATION type="bar" x="category" y="sales" color="region">
+    Question: How many customers are from the UAE?
+    Response: There are 140 customers from the UAE. This data could be visualized using a pie chart to show the distribution of customers by country.
+    <VISUALIZATION type="pie" values="count" names="country">
     """
-} 
+}

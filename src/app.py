@@ -58,44 +58,43 @@ class ChatApp:
             st.session_state.chat_manager = None
         if "db_config" not in st.session_state:
             st.session_state.db_config = {
-                "host": settings.DEFAULT_DB_HOST,
-                "port": settings.DEFAULT_DB_PORT,
-                "user": settings.DEFAULT_DB_USER,
-                "password": settings.DEFAULT_DB_PASSWORD,
-                "database": settings.DEFAULT_DB_NAME
+                "host": "",
+                "port": "",
+                "user": "",
+                "password": "",
+                "database": ""
             }
+        if "use_chat_history" not in st.session_state:
+            st.session_state.use_chat_history = False
 
     def setup_ui(self):
         """Setup the Streamlit UI components."""
         st.title(settings.APP_TITLE)
         
-        # Create two columns for chat and visualization
         chat_col, viz_col = st.columns([2, 1])
         
-        # Sidebar configuration
         with st.sidebar:
             self.setup_sidebar()
 
-        # Main chat interface
         with chat_col:
-            # Create a container for messages with bottom padding
             chat_container = st.container()
             
-            # Add the chat input at the bottom
-            user_query = st.chat_input(
-                "Ask a question or request a visualization...",
-                disabled=not st.session_state.is_connected
-            )
-            
+  
             # Display messages in the container
             with chat_container:
                 for message in st.session_state.chat_history:
                     with st.chat_message("AI" if isinstance(message, AIMessage) else "Human"):
                         st.markdown(message.content)
-            
+
+            # Add the chat input at the bottom
+            user_query = st.chat_input(
+                "Ask a question or request a visualization...",
+                disabled=not st.session_state.is_connected
+            )
             # Process user input if provided
             if user_query:
                 self.process_user_query(user_query)
+            
             
         # Visualization area
         with viz_col:
@@ -108,14 +107,14 @@ class ChatApp:
     def setup_sidebar(self):
         """Setup the sidebar with database connection settings."""
         st.subheader("Database Settings")
-        st.write("Configure your MySQL database connection:")
+        st.write("Configure your MySQL database connection")
         
         with st.form("db_settings"):
-            host = st.text_input("Host", settings.DEFAULT_DB_HOST)
-            port = st.text_input("Port", settings.DEFAULT_DB_PORT)
-            user = st.text_input("User", settings.DEFAULT_DB_USER)
-            password = st.text_input("Password", type="password", value=settings.DEFAULT_DB_PASSWORD)
-            database = st.text_input("Database", settings.DEFAULT_DB_NAME)
+            host = st.text_input("Host", value="localhost", placeholder="localhost")
+            port = st.text_input("Port", value="3306", placeholder="3306")
+            user = st.text_input("User", value="root", placeholder="root")
+            password = st.text_input("Password", type="password", value="", placeholder="password")
+            database = st.text_input("Database", value="sql_training", placeholder="sql_training")
             
             if st.form_submit_button("Connect"):
                 self.handle_connection(host, port, user, password, database)
@@ -126,28 +125,53 @@ class ChatApp:
                 self.handle_disconnection()
         else:
             st.error("🔴 Not connected")
+            
+        # Add chat history toggle
+        st.subheader("Chat Settings")
+        use_history = st.toggle("Enable Chat History", value=st.session_state.use_chat_history)
+        if use_history != st.session_state.use_chat_history:
+            st.session_state.use_chat_history = use_history
+            if not use_history:
+                # Keep only the welcome message when disabling chat history
+                st.session_state.chat_history = [st.session_state.chat_history[0]]
+                st.rerun()
 
     def handle_connection(self, host: str, port: str, user: str, password: str, database: str):
         """Handle database connection attempt."""
         try:
+            # Validate required fields
+            if not all([host, port, user, database, password]):
+                st.error("All fields are required. Please fill in all the connection details.")
+                return
+                
+            # Validate port is numeric
+            try:
+                port = int(port)
+            except ValueError:
+                st.error("Port must be a valid number.")
+                return
+
             with st.spinner("Connecting to database..."):
                 # Store the database configuration
-                st.session_state.db_config = {
+                db_config = {
                     "host": host,
-                    "port": port,
+                    "port": str(port),
                     "user": user,
                     "password": password,
                     "database": database
                 }
                 
-                # Initialize managers with the current configuration
-                db_manager = DatabaseManager(st.session_state.db_config)
-                chat_manager = ChatManager()
+                # Initialize database manager first
+                db_manager = DatabaseManager(db_config)
                 
                 # Test connection by getting schema
                 db_manager.get_schema()
                 
-                # Store chat manager in session state
+                # Initialize chat manager with the database manager
+                chat_manager = ChatManager(db_manager)
+                
+                # Store configurations and managers in session state
+                st.session_state.db_config = db_config
                 st.session_state.chat_manager = chat_manager
                 st.session_state.is_connected = True
                 
@@ -180,9 +204,14 @@ class ChatApp:
         st.session_state.chat_history.append(HumanMessage(content=user_query))
 
         try:
+            # Get chat history based on the toggle setting
+            chat_history = st.session_state.chat_history if st.session_state.use_chat_history else [st.session_state.chat_history[0]]
+            
+            logger.info(f"Chat history: {chat_history}")
+
             response, viz_data = st.session_state.chat_manager.get_response(
                 question=user_query,
-                chat_history=st.session_state.chat_history
+                chat_history=chat_history
             )
             
             # Update visualization if available
@@ -191,6 +220,14 @@ class ChatApp:
             
             # Add AI response to chat history
             st.session_state.chat_history.append(AIMessage(content=response))
+            
+            # If chat history is disabled, keep only the welcome message and the last exchange
+            if not st.session_state.use_chat_history:
+                st.session_state.chat_history = [
+                    st.session_state.chat_history[0],  # Welcome message
+                    st.session_state.chat_history[-2],  # User message
+                    st.session_state.chat_history[-1]   # AI response
+                ]
             
             # Rerun to update the UI
             st.rerun()

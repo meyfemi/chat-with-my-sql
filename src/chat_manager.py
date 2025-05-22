@@ -1,6 +1,5 @@
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any
 import logging
-import re
 from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -8,19 +7,16 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_groq import ChatGroq
 from config import settings, SQL_TEMPLATES
 from database import DatabaseManager
-from visualization_manager import VisualizationManager
-import streamlit as st
 
 logger = logging.getLogger(__name__)
 
 class ChatManager:
-    def __init__(self):
-        self.db_manager = DatabaseManager(st.session_state.db_config)
-        self.viz_manager = VisualizationManager()
+    def __init__(self, db_manager: DatabaseManager):
+        """Initialize ChatManager with a DatabaseManager instance."""
+        self.db_manager = db_manager
         self.llm = ChatGroq(
             model=settings.LLM_MODEL,
-            temperature=settings.LLM_TEMPERATURE,
-            api_key=settings.GROQ_API_KEY
+            temperature=settings.LLM_TEMPERATURE
         )
         self._initialize_chains()
 
@@ -47,70 +43,62 @@ class ChatManager:
             | StrOutputParser()
         )
 
-    def _extract_visualization_params(self, response: str) -> Optional[Dict[str, Any]]:
-        """Extract visualization parameters from the response."""
-        viz_match = re.search(r'<VISUALIZATION\s+(.+?)>', response, re.DOTALL)
-        if not viz_match:
-            return None
-
-        params = {}
-        param_string = viz_match.group(1)
+    def get_response(self, question: str, chat_history: List[BaseMessage]) -> tuple[str, Optional[Dict[str, Any]]]:
+        """Get response for user question and any visualization data.
         
-        # Extract type
-        type_match = re.search(r'type="([^"]+)"', param_string)
-        if type_match and type_match.group(1) in settings.SUPPORTED_CHARTS:
-            params['type'] = type_match.group(1)
-        else:
-            return None
-
-        # Extract other parameters
-        for param in ['x', 'y', 'color', 'values', 'names', 'size']:
-            param_match = re.search(f'{param}="([^"]+)"', param_string)
-            if param_match:
-                params[param] = param_match.group(1)
-
-        return params
-
-    def get_response(self, question: str, chat_history: List[BaseMessage]) -> Tuple[str, Optional[Dict]]:
-        """Get response for user question with optional visualization."""
+        Returns:
+            tuple: (response_text, visualization_data)
+        """
         try:
-            # Get the response from the chain
+            # Format chat history if it contains more than just the welcome message
+            formatted_history = self.format_chat_history(chat_history) if len(chat_history) > 1 else ""
+            
             response = self.response_chain.invoke(
                 {
                     "question": question,
-                    "chat_history": chat_history,
+                    "chat_history": formatted_history,
                 }
             )
-
-            # Check for visualization request
-            viz_params = self._extract_visualization_params(response)
+            logger.info(f"schema: {self.db_manager.get_schema()}")
+            # Extract visualization data if present
             viz_data = None
+            if "<VISUALIZATION" in response:
+                try:
+                    # Extract visualization parameters
+                    viz_start = response.find("<VISUALIZATION")
+                    viz_end = response.find(">", viz_start) + 1
+                    viz_tag = response[viz_start:viz_end]
+                    
+                    # Remove the visualization tag from the response
+                    response = response.replace(viz_tag, "").strip()
+                    # Parse visualization parameters
+                    import re
+                    params = dict(re.findall(r'(\w+)="([^"]*)"', viz_tag))
 
-            if viz_params:
-                # Get the raw data from the last query
-                raw_data = self.db_manager.get_last_query_data()
-                
-                # Create visualization
-                viz_type = viz_params.pop('type')
-                viz_data = self.viz_manager.create_visualization(
-                    data=raw_data,
-                    viz_type=viz_type,
-                    params=viz_params
-                )
-
-                # Remove the visualization tag from the response
-                response = re.sub(r'<VISUALIZATION\s+.+?>', '', response).strip()
-
+                    viz_type = params.pop("type", "bar")  # Default to bar chart
+                    
+                    # Get the last query data from database manager
+                    data = self.db_manager.get_last_query_data()
+                    logger.info(f"data from get_last_query_data: {data}")
+                    if data is not None:
+                        from visualization_manager import VisualizationManager
+                        viz_data = VisualizationManager.create_visualization(data, viz_type, params)
+                except Exception as e:
+                    logger.error(f"Error creating visualization: {str(e)}")
+                    # Continue without visualization if there's an error
+            
             return response, viz_data
-
+            
         except Exception as e:
             logger.error(f"Error getting response: {str(e)}")
             return f"I apologize, but I encountered an error: {str(e)}", None
 
     def format_chat_history(self, messages: List[BaseMessage]) -> str:
         """Format chat history for prompt context."""
+        # Skip the welcome message (first message) when formatting history
         formatted = []
-        for msg in messages:
+        for msg in messages[1:]:
             role = "User" if isinstance(msg, HumanMessage) else "Assistant"
-            formatted.append(f"{role}: {msg.content}")
+            timestamp = msg.additional_kwargs.get("timestamp", "")
+            formatted.append(f"[{timestamp}] {role}: {msg.content}")
         return "\n".join(formatted) 

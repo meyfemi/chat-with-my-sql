@@ -18,6 +18,15 @@ class DatabaseManager:
     _db_config: Dict[str, str] = None
 
     def __new__(cls, db_config: Dict[str, str] = None):
+        if not db_config:
+            raise ValueError("Database configuration is required")
+            
+        # Validate required fields
+        required_fields = ["host", "port", "user", "database", "password"]
+        missing_fields = [field for field in required_fields if not db_config.get(field)]
+        if missing_fields:
+            raise ValueError(f"Missing required database configuration fields: {', '.join(missing_fields)}")
+            
         if cls._instance is None or db_config != cls._db_config:
             cls._instance = super(DatabaseManager, cls).__new__(cls)
             cls._db_config = db_config
@@ -73,7 +82,7 @@ class DatabaseManager:
             # Execute query using SQLAlchemy for better DataFrame support
             with self.db._engine.connect() as connection:
                 result = pd.read_sql_query(query, connection)
-                
+                logger.warning(f"Executed query: {query}")
                 # Store the result for visualization
                 if len(result) > settings.MAX_ROWS_DISPLAY:
                     self._last_query_data = result.head(settings.MAX_ROWS_DISPLAY)
