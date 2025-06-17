@@ -10,6 +10,7 @@ from database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
+
 class ChatManager:
     def __init__(self, db_manager: DatabaseManager):
         """Initialize ChatManager with a DatabaseManager instance."""
@@ -25,22 +26,22 @@ class ChatManager:
         # SQL Chain
         sql_prompt = ChatPromptTemplate.from_template(SQL_TEMPLATES["default"])
         self.sql_chain = (
-            RunnablePassthrough.assign(schema=lambda _: self.db_manager.get_schema())
-            | sql_prompt
-            | self.llm
-            | StrOutputParser()
+                RunnablePassthrough.assign(schema=lambda _: self.db_manager.get_schema())
+                | sql_prompt
+                | self.llm
+                | StrOutputParser()
         )
 
         # Response Chain
         response_prompt = ChatPromptTemplate.from_template(SQL_TEMPLATES["response"])
         self.response_chain = (
-            RunnablePassthrough.assign(query=self.sql_chain).assign(
-                schema=lambda _: self.db_manager.get_schema(),
-                response=lambda vars: self.db_manager.execute_query(vars['query']),
-            )
-            | response_prompt
-            | self.llm
-            | StrOutputParser()
+                RunnablePassthrough.assign(query=self.sql_chain).assign(
+                    schema=lambda _: self.db_manager.get_schema(),
+                    response=lambda vars: self.db_manager.execute_query(vars['query']),
+                )
+                | response_prompt
+                | self.llm
+                | StrOutputParser()
         )
 
     def get_response(self, question: str, chat_history: List[BaseMessage]) -> tuple[str, Optional[Dict[str, Any]]]:
@@ -52,14 +53,13 @@ class ChatManager:
         try:
             # Format chat history if it contains more than just the welcome message
             formatted_history = self.format_chat_history(chat_history) if len(chat_history) > 1 else ""
-            
+
             response = self.response_chain.invoke(
                 {
                     "question": question,
                     "chat_history": formatted_history,
                 }
             )
-            logger.info(f"schema: {self.db_manager.get_schema()}")
             # Extract visualization data if present
             viz_data = None
             if "<VISUALIZATION" in response:
@@ -68,7 +68,7 @@ class ChatManager:
                     viz_start = response.find("<VISUALIZATION")
                     viz_end = response.find(">", viz_start) + 1
                     viz_tag = response[viz_start:viz_end]
-                    
+
                     # Remove the visualization tag from the response
                     response = response.replace(viz_tag, "").strip()
                     # Parse visualization parameters
@@ -76,19 +76,18 @@ class ChatManager:
                     params = dict(re.findall(r'(\w+)="([^"]*)"', viz_tag))
 
                     viz_type = params.pop("type", "bar")  # Default to bar chart
-                    
+
                     # Get the last query data from database manager
                     data = self.db_manager.get_last_query_data()
-                    logger.info(f"data from get_last_query_data: {data}")
                     if data is not None:
                         from visualization_manager import VisualizationManager
                         viz_data = VisualizationManager.create_visualization(data, viz_type, params)
                 except Exception as e:
                     logger.error(f"Error creating visualization: {str(e)}")
                     # Continue without visualization if there's an error
-            
+
             return response, viz_data
-            
+
         except Exception as e:
             logger.error(f"Error getting response: {str(e)}")
             return f"I apologize, but I encountered an error: {str(e)}", None
@@ -99,6 +98,5 @@ class ChatManager:
         formatted = []
         for msg in messages[1:]:
             role = "User" if isinstance(msg, HumanMessage) else "Assistant"
-            timestamp = msg.additional_kwargs.get("timestamp", "")
-            formatted.append(f"[{timestamp}] {role}: {msg.content}")
-        return "\n".join(formatted) 
+            formatted.append(f"{role}: {msg.content}")
+        return "\n".join(formatted)

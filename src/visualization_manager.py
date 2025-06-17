@@ -23,9 +23,9 @@ class VisualizationManager:
                 except json.JSONDecodeError:
                     # If not JSON, try parsing as CSV-like string
                     data = pd.read_csv(pd.StringIO(data))
-            
+
             df = pd.DataFrame(data)
-            
+
             # Create visualization based on type
             if viz_type == "bar":
                 fig = px.bar(
@@ -92,13 +92,13 @@ class VisualizationManager:
                     data = json.loads(data)
                 except json.JSONDecodeError:
                     data = pd.read_csv(pd.StringIO(data))
-            
+
             df = pd.DataFrame(data)
-            
+
             # Analyze columns
             numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
             categorical_cols = df.select_dtypes(include=['object', 'category']).columns
-            
+
             # Simple rules for visualization suggestions
             if len(df.columns) == 2:
                 if len(numeric_cols) == 2:
@@ -121,7 +121,7 @@ class VisualizationManager:
                         "color": categorical_cols[1] if len(categorical_cols) > 1 else None,
                         "title": f"{numeric_cols[0]} by {categorical_cols[0]}"
                     }
-            
+
             # Default to bar chart if no specific suggestion
             return "bar", {
                 "x": df.columns[0],
@@ -130,4 +130,4 @@ class VisualizationManager:
             }
         except Exception as e:
             logger.error(f"Error suggesting visualization: {str(e)}")
-            return "bar", {"title": "Data Visualization"} 
+            return "bar", {"title": "Data Visualization"}

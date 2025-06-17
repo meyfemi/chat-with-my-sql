@@ -79,7 +79,6 @@ class ChatApp:
         with chat_col:
             chat_container = st.container()
             
-  
             # Display messages in the container
             with chat_container:
                 for message in st.session_state.chat_history:
@@ -113,8 +112,8 @@ class ChatApp:
             host = st.text_input("Host", value="localhost", placeholder="localhost")
             port = st.text_input("Port", value="3306", placeholder="3306")
             user = st.text_input("User", value="root", placeholder="root")
-            password = st.text_input("Password", type="password", value="", placeholder="password")
-            database = st.text_input("Database", value="sql_training", placeholder="sql_training")
+            password = st.text_input("Password", type="password", value="password", placeholder="password")
+            database = st.text_input("Database", value="chinook", placeholder="chinook")
             
             if st.form_submit_button("Connect"):
                 self.handle_connection(host, port, user, password, database)
@@ -209,10 +208,12 @@ class ChatApp:
             
             logger.info(f"Chat history: {chat_history}")
 
-            response, viz_data = st.session_state.chat_manager.get_response(
-                question=user_query,
-                chat_history=chat_history
-            )
+            # Show spinner while waiting for AI response
+            with st.spinner("Thinking..."):
+                response, viz_data = st.session_state.chat_manager.get_response(
+                    question=user_query,
+                    chat_history=chat_history
+                )
             
             # Update visualization if available
             if viz_data:
@@ -236,6 +237,7 @@ class ChatApp:
             error_msg = f"An error occurred: {str(e)}"
             logger.error(error_msg)
             st.error(error_msg)
+            st.rerun()
 
 if __name__ == "__main__":
     app = ChatApp()
