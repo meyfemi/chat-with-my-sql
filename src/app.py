@@ -103,6 +103,11 @@ class ChatApp:
                 if viz_data and "figure" in viz_data:
                     st.plotly_chart(viz_data["figure"], use_container_width=True)
 
+            # Show generated SQL query
+            if "last_sql_query" in st.session_state and st.session_state.last_sql_query:
+                st.subheader("Generated SQL Query")
+                st.code(st.session_state.last_sql_query, language="sql")
+
     def setup_sidebar(self):
         """Setup the sidebar with database connection settings."""
         st.subheader("Database Settings")
@@ -210,7 +215,7 @@ class ChatApp:
 
             # Show spinner while waiting for AI response
             with st.spinner("Thinking..."):
-                response, viz_data = st.session_state.chat_manager.get_response(
+                response, viz_data, sql_query = st.session_state.chat_manager.get_response(
                     question=user_query,
                     chat_history=chat_history
                 )
@@ -218,6 +223,9 @@ class ChatApp:
             # Update visualization if available
             if viz_data:
                 st.session_state.current_viz = viz_data
+            
+            # Store the SQL query
+            st.session_state.last_sql_query = sql_query
             
             # Add AI response to chat history
             st.session_state.chat_history.append(AIMessage(content=response))

@@ -82,3 +82,106 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
+
+## How Data Flows
+
+User Types Question → ChatApp → ChatManager → LLM → SQL Query → Database → Results → Visualization → Display 
+
+## Key Classes and Their Roles
+
+### ChatApp
+
+```python
+class ChatApp:
+    def __init__(self)  # Initializes the app
+    def setup_ui()      # Creates the interface
+    def setup_sidebar() # Handles database settings
+    def process_user_query() # Processes user messages
+```
+
+### ChatManager
+
+```python
+class ChatManager:
+    def __init__(db_manager)     # Sets up AI and database connection
+    def get_response()           # Gets AI response
+    def format_chat_history()    # Formats conversation history
+```
+
+### DatabaseManager
+
+```python
+class DatabaseManager:
+    def __init__(db_config)      # Sets up database connection
+    def execute_query()          # Runs SQL queries
+    def get_schema()            # Gets database structure
+```
+
+### VisualizationManager
+
+```python
+class VisualizationManager:
+    def __init__(self)  # Initializes the manager
+    def create_chart()  # Creates a chart based on query results
+    def display_chart() # Displays the created chart
+```
+
+## Key Features
+
+### Database Connection
+
+- Connect via sidebar
+- Enter host, port, user, password, database
+- Connection status shown
+- Secure credential handling
+
+### Chat Interface
+
+- Natural language queries
+- Chat history (can be toggled on/off)
+- Error handling
+- Real-time responses
+
+### Visualizations
+
+- Automatic chart creation
+- Multiple chart types (bar, line, scatter, pie)
+- Interactive Plotly charts
+- Data limit handling
+
+## How to Use
+
+```bash
+# 1. Start the app
+streamlit run src/app.py
+
+# 2. Connect to database:
+- Fill in database details in sidebar
+- Click "Connect"
+
+# 3. Start chatting:
+- Type natural language questions
+- Get SQL results and visualizations
+- Toggle chat history if needed
+```
+
+## Important Settings
+
+- Chat history toggle in sidebar
+- Database connection settings
+- Visualization options
+- Error messages and logging
+
+## Error Handling
+
+- Database connection errors
+- Query execution errors
+- Visualization errors
+- Input validation
+
+Would you like me to explain any specific part in more detail? For example:
+1. The database connection flow
+2. How natural language is converted to SQL
+3. How visualizations are created
+4. The chat history management
+5. Error handling in different components 

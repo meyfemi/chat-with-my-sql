@@ -44,22 +44,33 @@ class ChatManager:
                 | StrOutputParser()
         )
 
-    def get_response(self, question: str, chat_history: List[BaseMessage]) -> tuple[str, Optional[Dict[str, Any]]]:
+    def get_response(self, question: str, chat_history: List[BaseMessage]) -> tuple[str, Optional[Dict[str, Any]], str]:
         """Get response for user question and any visualization data.
         
         Returns:
-            tuple: (response_text, visualization_data)
+            tuple: (response_text, visualization_data, sql_query)
         """
         try:
             # Format chat history if it contains more than just the welcome message
             formatted_history = self.format_chat_history(chat_history) if len(chat_history) > 1 else ""
 
-            response = self.response_chain.invoke(
+            # Get the SQL query first
+            sql_query = self.sql_chain.invoke(
                 {
                     "question": question,
                     "chat_history": formatted_history,
                 }
             )
+
+            # Get the response using the generated SQL
+            response = self.response_chain.invoke(
+                {
+                    "question": question,
+                    "chat_history": formatted_history,
+                    "query": sql_query
+                }
+            )
+
             # Extract visualization data if present
             viz_data = None
             if "<VISUALIZATION" in response:
@@ -86,11 +97,11 @@ class ChatManager:
                     logger.error(f"Error creating visualization: {str(e)}")
                     # Continue without visualization if there's an error
 
-            return response, viz_data
+            return response, viz_data, sql_query
 
         except Exception as e:
             logger.error(f"Error getting response: {str(e)}")
-            return f"I apologize, but I encountered an error: {str(e)}", None
+            return f"I apologize, but I encountered an error: {str(e)}", None, ""
 
     def format_chat_history(self, messages: List[BaseMessage]) -> str:
         """Format chat history for prompt context."""
