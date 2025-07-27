@@ -8,9 +8,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # LLM settings (from environment variables)
-    LLM_MODEL: str = "mistral-saba-24b"
-    LLM_TEMPERATURE: float = 0.0
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     
     # Cache settings
     SCHEMA_CACHE_TTL: int = 3600  # 1 hour
@@ -36,6 +34,8 @@ SQL_TEMPLATES: Dict[str, str] = {
     You are a data analyst at a company. You are interacting with a user who is asking you questions about the company's database.
     Based on the table schema below, write a SQL query that would answer the user's question. Take the conversation history into account.
     If the user asks for visualization or charts, make sure to include relevant numerical and categorical columns in the query.
+    
+    IMPORTANT: For MySQL, window functions (like AVG(...) OVER (...)) are only allowed in the SELECT and ORDER BY clauses. If you need to filter based on a window function, use a subquery or CTE to first compute the window function, then filter in the outer query. Do NOT use window functions directly in the WHERE clause.
     
     <SCHEMA>{schema}</SCHEMA>
     
