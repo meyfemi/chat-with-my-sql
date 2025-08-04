@@ -1,79 +1,212 @@
 # Chat with MySQL
 
-A production-ready Streamlit application that allows users to interact with MySQL databases using natural language queries. The application uses LangChain and Groq's LLM to convert natural language questions into SQL queries and provide human-readable responses.
+A production-ready Streamlit application that allows users to interact with MySQL databases using natural language queries. The application uses Google Gemini AI to convert natural language questions into SQL queries and provide human-readable responses with automatic visualizations.
 
 ## Features
 
 - Natural language to SQL query conversion
-- Interactive chat interface
+- Interactive chat interface with real-time responses
+- Automatic data visualization using Plotly
 - Connection pooling for efficient database access
 - Error handling and logging
 - Configurable settings via environment variables
 - Clean and modern UI
 - Session management
 - Caching for improved performance
+- Docker support for easy deployment
 
 ## Prerequisites
 
-- Python 3.8+
-- MySQL Server
-- Groq API key
+- Docker and Docker Compose
+- MySQL database (local or remote)
+- Google Gemini API key
 
-## Installation
+## Quick Start with Docker (Recommended)
 
-1. Clone the repository:
+### 1. Clone the Repository
 ```bash
 git clone <repository-url>
 cd chat-with-mysql
 ```
 
-2. Create and activate a virtual environment:
+### 2. Set Up Environment Variables
+Create a `.env` file in the root directory:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Create .env file
+echo "GEMINI_API_KEY=your_gemini_api_key_here" > .env
 ```
 
-3. Install dependencies:
+### 3. Run with Docker Compose
 ```bash
-pip install -r requirements.txt
+# Build and start the application
+docker-compose up --build
+
+# Or run in background
+docker-compose up -d --build
 ```
 
-4. Create a `.env` file in the root directory with your configuration:
-```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=your_username
-DB_PASSWORD=your_password
-DB_NAME=your_database
-GROQ_API_KEY=your_groq_api_key
+### 4. Access the Application
+- Open your web browser
+- Navigate to: **http://localhost:8501**
+- Configure your database connection in the sidebar
+- Start chatting with your database!
+
+## Database Connection Setup
+
+### For Local MySQL Database:
+1. **Enable remote connections** in MySQL:
+   ```bash
+   # Edit MySQL config file (location may vary)
+   sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+   ```
+
+2. **Change bind-address** in the `[mysqld]` section:
+   ```ini
+   [mysqld]
+   bind-address = 0.0.0.0  # Allow connections from any IP
+   ```
+
+3. **Restart MySQL service:**
+   ```bash
+   sudo systemctl restart mysql
+   ```
+
+4. **Grant permissions** for your user:
+   ```sql
+   -- Connect to MySQL as root
+   mysql -u root -p
+   
+   -- Grant permissions (replace with your actual username and database)
+   GRANT ALL PRIVILEGES ON your_database_name.* TO 'your_username'@'%' IDENTIFIED BY 'your_password';
+   FLUSH PRIVILEGES;
+   ```
+
+5. **Connection settings in the app:**
+   - Host: `host.docker.internal` (Docker's hostname for your computer)
+   - Port: `3306`
+   - User: Your MySQL username
+   - Password: Your MySQL password
+   - Database: Your database name
+
+### For Remote MySQL Database:
+- Ensure your MySQL server allows external connections
+- Configure firewall rules to allow connections on port 3306
+- Use the remote server's IP address or hostname in the connection settings
+
+## Docker Commands
+
+```bash
+# Start the application
+docker-compose up
+
+# Start in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+
+# Rebuild and start (if you make code changes)
+docker-compose up --build
+
+# Stop and remove containers, networks, and volumes
+docker-compose down -v
 ```
+
+## Local Development Setup (Alternative)
+
+If you prefer to run the application locally without Docker:
+
+### Prerequisites
+- Python 3.8+
+- MySQL Server
+- Google Gemini API key
+
+### Installation
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd chat-with-mysql
+   ```
+
+2. **Create and activate a virtual environment:**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Run the application:**
+   ```bash
+   streamlit run src/app.py
+   ```
 
 ## Usage
 
-1. Start the application:
-```bash
-streamlit run src/app.py
-```
+### Connecting to Your Database
+1. **Open the application** in your web browser
+2. **Configure database connection** in the sidebar:
+   - Host: Your MySQL server hostname/IP
+   - Port: Your MySQL port (usually 3306)
+   - User: Your MySQL username
+   - Password: Your MySQL password
+   - Database: Your database name
+3. **Click "Connect"** to establish the connection
 
-2. Open your web browser and navigate to the URL shown in the terminal (typically http://localhost:8501)
+### Chatting with Your Database
+1. **Ask questions** in natural language:
+   - "Show me the top 10 customers by total purchases"
+   - "Which products had the highest sales last month?"
+   - "Find customers who haven't made a purchase in 6 months"
 
-3. Configure your database connection using the sidebar settings
+2. **View results** including:
+   - Natural language responses
+   - Generated SQL queries (for transparency)
+   - Automatic visualizations (when applicable)
 
-4. Start chatting with your database!
+3. **Toggle features** in the sidebar:
+   - Chat history (on/off)
+   - Database connection settings
 
 ## Project Structure
 
 ```
 chat-with-mysql/
 ├── src/
-│   ├── app.py           # Main Streamlit application
-│   ├── chat_manager.py  # Chat and LLM interaction logic
-│   ├── config.py        # Configuration management
-│   └── database.py      # Database connection and query handling
-├── .env                 # Environment variables (create this)
-├── requirements.txt     # Python dependencies
-└── README.md           # This file
+│   ├── app.py              # Main Streamlit application
+│   ├── chat_manager.py     # Chat and AI interaction logic
+│   ├── config.py           # Configuration management
+│   ├── database.py         # Database connection and query handling
+│   └── visualization_manager.py  # Data visualization logic
+├── .env                    # Environment variables (create this)
+├── requirements.txt        # Python dependencies
+├── Dockerfile             # Docker configuration
+├── docker-compose.yml     # Docker Compose configuration
+├── .dockerignore          # Docker ignore file
+└── README.md              # This file
 ```
+
+## Troubleshooting
+
+### Docker Issues
+- **Container won't start**: Check if port 8501 is available
+- **Build fails**: Ensure Docker and Docker Compose are installed
+- **Permission errors**: Run with appropriate user permissions
+
+### Database Connection Issues
+- **Connection refused**: Check if MySQL is running and accessible
+- **Access denied**: Verify user permissions and host access
+- **Firewall issues**: Ensure port 3306 is open
+
+### API Issues
+- **429 errors**: Check your Gemini API quota and rate limits
+- **Authentication errors**: Verify your API key in the `.env` file
 
 ## Contributing
 

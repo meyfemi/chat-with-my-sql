@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  # Streamlit Application
+  app:
+    build: .
+    container_name: chat_mysql_app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    networks:
+      - chat_network
+    volumes:
+      - ./.env:/app/.env:ro
+
+networks:
+  chat_network:
+    driver: bridge 
